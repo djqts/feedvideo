@@ -1,0 +1,20 @@
+go 1.25.1
+
+use (
+	./recommend
+	./creator-center
+	./feed
+	./gateway
+	./moderation
+	./notification
+	./search
+	./shared-auth
+	./shared-config
+	./shared-db
+	./shared-events
+	./shared-mq
+	./shared-storage
+	./tag-topic
+	./user
+	./video
+)

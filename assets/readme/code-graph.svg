@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="t d">
+  <title id="t">FeedVideo 代码图谱：3,909 个节点、14,161 条边、210 个社区，以及耦合最重的六对模块</title>
+  <desc id="d">代码知识图谱摘要：左侧为节点、边、社区数量与抽取置信度；右侧为引用最重的六个模块方向，gateway 引用 video 的边最多。</desc>
+  <rect width="1200" height="400" fill="#F3F1EC"/>
+  <text x="56" y="44" font-size="17" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="2">// CODE GRAPH</text>
+  <text x="1144" y="44" font-size="15" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="end">graphify 0.9.104 · commit 7994625</text>
+  <text x="56" y="108" font-size="34" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="700">3,909</text>
+  <text x="210" y="108" font-size="15" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="1">NODES</text>
+  <text x="56" y="160" font-size="34" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="700">14,161</text>
+  <text x="210" y="160" font-size="15" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="1">EDGES</text>
+  <text x="56" y="212" font-size="34" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="700">210</text>
+  <text x="210" y="212" font-size="15" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="1">COMMUNITIES</text>
+  <text x="56" y="262" font-size="15" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="0.5">90% EXTRACTED · 10% INFERRED</text>
+  <text x="56" y="292" font-size="15" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">code 3,761 · concept 147 · rationale 1</text>
+  <text x="520" y="96" font-size="16" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="1.5">// 引用最重的模块方向</text>
+  <rect x="520" y="125" width="8" height="8" fill="#FFFA00"/>
+  <text x="538" y="140" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">gateway -&gt; video</text>
+  <rect x="800" y="133" width="280" height="7" fill="#E4E4E0"/>
+  <rect x="800" y="133" width="280" height="7" fill="#161616"/>
+  <text x="1144" y="140" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="end">644</text>
+  <text x="538" y="178" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">feed -&gt; video</text>
+  <rect x="800" y="171" width="280" height="7" fill="#E4E4E0"/>
+  <rect x="800" y="171" width="123" height="7" fill="#161616"/>
+  <text x="1144" y="178" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="end">283</text>
+  <text x="538" y="216" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">video -&gt; shared-db</text>
+  <rect x="800" y="209" width="280" height="7" fill="#E4E4E0"/>
+  <rect x="800" y="209" width="69" height="7" fill="#161616"/>
+  <text x="1144" y="216" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="end">158</text>
+  <text x="538" y="254" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">gateway -&gt; shared-auth</text>
+  <rect x="800" y="247" width="280" height="7" fill="#E4E4E0"/>
+  <rect x="800" y="247" width="62" height="7" fill="#161616"/>
+  <text x="1144" y="254" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="end">142</text>
+  <text x="538" y="292" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">search -&gt; video</text>
+  <rect x="800" y="285" width="280" height="7" fill="#E4E4E0"/>
+  <rect x="800" y="285" width="60" height="7" fill="#161616"/>
+  <text x="1144" y="292" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="end">138</text>
+  <text x="538" y="330" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">gateway -&gt; user</text>
+  <rect x="800" y="323" width="280" height="7" fill="#E4E4E0"/>
+  <rect x="800" y="323" width="43" height="7" fill="#161616"/>
+  <text x="1144" y="330" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="end">98</text>
+  <text x="56" y="376" font-size="15" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">跨模块边 2,606 条（18%）；节点 = 符号，边 = imports / references / calls / contains / method。</text>
+</svg>

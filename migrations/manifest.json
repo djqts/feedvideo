@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "migrations": [
+    {
+      "version": 1,
+      "name": "001_outbox_base.sql",
+      "direction": "up",
+      "checksum": "e617141a9e9b5c6c0352b08ae94745281618a1502ad485bb0da4e42d3004063b",
+      "compatible_app_min": "0.1.0"
+    },
+    {
+      "version": 2,
+      "name": "002_outbox_lease.sql",
+      "direction": "up",
+      "checksum": "a769c316c9b81b9763b15bbe42b0a50015a1b23f1f2bccf5a861a80e7bb018c2",
+      "compatible_app_min": "0.1.0"
+    },
+    {
+      "version": 2,
+      "name": "002_outbox_lease.rollback.sql",
+      "direction": "down",
+      "checksum": "424598b830f532320aeefa8aea4a3fecacd3e988cb44488977edd5fe7970ef16",
+      "compatible_app_min": "0.1.0"
+    },
+    {
+      "version": 3,
+      "name": "003_outbox_fencing.sql",
+      "direction": "up",
+      "checksum": "33cef3e424adeadd12720aec81f4723ad489c519e2e376a2fd7f3a0520ba4613",
+      "compatible_app_min": "0.1.0"
+    },
+    {
+      "version": 4,
+      "name": "004_relation_versions.sql",
+      "direction": "up",
+      "checksum": "51c4f3e00116dcfc8396095c83dcc13d05647858abdae59863a2860bb4c8a805",
+      "compatible_app_min": "0.1.0"
+    }
+  ]
+}

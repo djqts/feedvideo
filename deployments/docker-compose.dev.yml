@@ -1,0 +1,93 @@
+# =============================================================================
+# 本地开发叠加层（P0.1 明确：仅开发环境暴露 Gateway 端口与可视化工具）
+# 用法：
+#   cp .env.example .env   # 填入本地开发凭据（可全部使用示例值）
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# =============================================================================
+
+services:
+  # 开发环境允许直接访问 gateway 8080（E2E 脚本依赖）——生产 profile 不得叠加本文件
+  gateway:
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=${APP_ENV:-development}
+
+  mysql:
+    ports:
+      - "3306:3306"
+
+  mongodb:
+    ports:
+      - "27017:27017"
+
+  rabbitmq:
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  elasticsearch:
+    environment:
+      http.cors.enabled: "true"
+      http.cors.allow-origin: "/.*/"
+
+  # ——— 可视化管理界面（仅开发）———
+  adminer:
+    image: adminer:4.8.1
+    container_name: feedvideo-adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+    networks:
+      - feedvideo
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    container_name: feedvideo-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/"
+      ME_CONFIG_BASICAUTH: "false"
+    networks:
+      - feedvideo
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: feedvideo-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8083:8081"
+    environment:
+      REDIS_HOSTS: "local:redis:6379:0:${REDIS_PASSWORD}"
+    networks:
+      - feedvideo
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  elasticvue:
+    image: elasticvue/elasticvue:0.55.0
+    container_name: feedvideo-elasticvue
+    restart: unless-stopped
+    ports:
+      - "8084:8080"
+    networks:
+      - feedvideo
+    depends_on:
+      elasticsearch:
+        condition: service_healthy

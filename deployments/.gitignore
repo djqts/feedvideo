@@ -1,0 +1,11 @@
+
+# 宿主机预编译二进制（构建产物，勿提交）
+gateway-linux-amd64
+media-worker-linux-amd64
+notification-worker-linux-amd64
+
+# 环境变量（含真实凭据，严禁提交）
+.env
+
+# 本地验证自签证书（严禁提交私钥）
+certs/

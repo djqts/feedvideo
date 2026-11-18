@@ -1,0 +1,33 @@
+# Local-only override for this workstation.
+#
+# 1. Hyper-V reserves TCP 7992-8091, so 8080 cannot be bound here; the desktop
+#    client defaults to 18080 as well.
+# 2. The dev database on this machine predates the current migration ledger, so
+#    the gateway is started in apply mode to build the schema it needs.
+#
+# Usage (from the repo root):
+#   docker compose -f deployments/docker-compose.yml \
+#     -f deployments/docker-compose.dev.yml \
+#     -f desktop/deploy/compose.override.yml up -d --no-build gateway
+services:
+  gateway:
+    ports: !override
+      - "18080:8080"
+    environment:
+      - MIGRATIONS_MODE=apply
+      - DB_AUTO_MIGRATE=true
+      # deployments/.env pins MONGO_URI to a credential-less URI, but the Mongo
+      # instance requires auth, so every gateway command is rejected and the
+      # swallowed error surfaces as "upload unavailable". Rebuild the URI from
+      # the same root credentials the container is initialised with.
+      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/feedvideo?authSource=admin
+
+  # The workers read and write Mongo too; without credentials they fail every
+  # task with "(Unauthorized) Command update requires authentication".
+  media-worker:
+    environment:
+      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/feedvideo?authSource=admin
+
+  notification-worker:
+    environment:
+      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/feedvideo?authSource=admin

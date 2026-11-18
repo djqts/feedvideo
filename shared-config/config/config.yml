@@ -1,0 +1,82 @@
+app:
+  name: feedvideo
+  port: ":8080"
+
+database:
+  default: mysql
+  pool:
+    maxIdleConns: 10
+    maxOpenConns: 100
+    connMaxLifetime: 60
+    connMaxIdleTime: 10
+  drivers:
+    mysql:
+      host: "${DB_HOST}"
+      port: 3306
+      username: "${DB_USER}"
+      password: "${DB_PASSWORD}"
+      dbName: "${DB_NAME}"
+      charset: utf8mb4
+      parseTime: true
+      loc: Local
+    postgres:
+      host: ""
+    sqlite:
+      file: ""
+
+secretKey: "${JWT_RSA_SECRET}"
+
+redis:
+  addr: "${REDIS_ADDR}"
+  password: "${REDIS_PASSWORD}"
+  db: 0
+
+MongoDB:
+  uri: "${MONGO_URI}"
+  database: "${MONGO_DATABASE}"
+
+elasticsearch:
+  addresses: ["${ES_ADDRESS}"]
+  username: "${ES_USERNAME}"
+  password: "${ES_PASSWORD}"
+  ca_cert: ""
+  max_retries: 3
+  retry_on_status: [502, 503, 504]
+  timeout: 30s
+  enable_debug: false
+
+rabbitmq:
+  addr: "${RABBITMQ_ADDR}"
+  username: "${RABBITMQ_USER}"
+  password: "${RABBITMQ_PASSWORD}"
+  vhost: "/"
+
+kafka:
+  brokers: ["${KAFKA_BROKER}"]
+
+Slog:
+  folder: "logs"
+FileBeat:
+
+feed:
+  pool_ttl: 300
+  recall_size: 200
+  dedup_max: 2000
+  dedup_ttl: 86400
+  build_timeout_ms: 500
+  weights:
+    hotness: 0.5
+    interest: 0.3
+    recency: 0.2
+
+notification:
+  admin_ids: []
+
+search:
+  cache_ttl: 300
+  hot_max: 100
+  suggest_max: 10
+  suggest_prefix_min: 1
+
+creator:
+  cpm: 2.0

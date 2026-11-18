@@ -1,0 +1,318 @@
+# =============================================================================
+# FeedVideo 告警规则（P1.3）
+# 需接入 Prometheus rule_files + Alertmanager 通知渠道。
+# =============================================================================
+groups:
+  - name: feedvideo-core
+    rules:
+      # 每个 gateway 实例的真实 5xx 比例 > 1%（近 5 分钟）；零请求不报警。
+      - alert: FeedVideoHigh5xxRate
+        expr: |
+          sum by (job, instance) (rate(feedvideo_http_errors_total{job="feedvideo-gateway",class="5xx"}[5m]))
+          / sum by (job, instance) (rate(feedvideo_http_requests_total{job="feedvideo-gateway"}[5m]))
+          > 0.01
+          and on (job, instance)
+          sum by (job, instance) (rate(feedvideo_http_requests_total{job="feedvideo-gateway"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Gateway 5xx 比例超过 1%"
+
+      # 每实例/路由最近 5 分钟 P95 > 5s；保留累计 gauge 仅作兼容。
+      - alert: FeedVideoHighP95Latency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (job, instance, route, le) (
+              rate(feedvideo_http_request_duration_seconds_bucket{job="feedvideo-gateway"}[5m])
+            )
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "路由 {{ $labels.route }} P95 延迟超过 5s"
+
+      # /readyz 非 200 持续 1 分钟（依赖 Prometheus blackbox probe 或 push 的 up 指标）
+      - alert: FeedVideoNotReady
+        expr: |
+          probe_success{job="feedvideo-readyz"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "/readyz 连续 1 分钟不可用"
+
+      # 仅本实例通知订阅；未知不等于确认0，抓取失败交给可用性告警。
+      - alert: FeedVideoNoMQConsumers
+        expr: |
+          feedvideo_notif_consumers{job="feedvideo-notification-worker"} == 0
+          and on (job, instance)
+          feedvideo_notif_consumers_known{job="feedvideo-notification-worker"} == 1
+          and on (job, instance)
+          up{job="feedvideo-notification-worker"} == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "通知 worker 无已确认活跃消费者"
+
+      - alert: FeedVideoNotifConsumerStateUnknown
+        expr: |
+          (
+            feedvideo_notif_consumers_known{job="feedvideo-notification-worker"} == 0
+            or feedvideo_notif_consumers{job="feedvideo-notification-worker"} < 0
+          )
+          and on (job, instance)
+          up{job="feedvideo-notification-worker"} == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "通知 worker 消费者状态持续未知"
+
+      - alert: FeedVideoMetricsTargetDown
+        expr: |
+          up{job=~"feedvideo-gateway|feedvideo-notification-worker|feedvideo-media-worker|feedvideo-readyz"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "指标抓取持续失败（{{ $labels.job }} {{ $labels.instance }}）"
+
+      # 精确 job 分别检测，不能以一个正则 absent 推断缺失哪个 job。
+      - alert: FeedVideoMetricsJobMissing
+        expr: |
+          absent(up{job="feedvideo-gateway"})
+          or absent(up{job="feedvideo-notification-worker"})
+          or absent(up{job="feedvideo-media-worker"})
+          or absent(up{job="feedvideo-readyz"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "监控 job 缺失：{{ $labels.job }}"
+
+      # up=1 才按同实例检测必需项；未观测路由桶不是必需项。
+      - alert: FeedVideoRequiredMetricMissing
+        expr: |
+          label_replace(
+            (up{job="feedvideo-gateway"} == 1)
+            unless on (job, instance) feedvideo_http_requests_total{job="feedvideo-gateway"},
+            "metric", "feedvideo_http_requests_total", "job", ".*"
+          )
+          or label_replace(
+            (up{job="feedvideo-gateway"} == 1)
+            unless on (job, instance) feedvideo_http_errors_total{job="feedvideo-gateway",class="5xx"},
+            "metric", "feedvideo_http_errors_total", "job", ".*"
+          )
+          or label_replace(
+            (up{job="feedvideo-notification-worker"} == 1)
+            unless on (job, instance) feedvideo_notif_received_total{job="feedvideo-notification-worker"},
+            "metric", "feedvideo_notif_received_total", "job", ".*"
+          )
+          or label_replace(
+            (up{job="feedvideo-notification-worker"} == 1)
+            unless on (job, instance) feedvideo_notif_consumers{job="feedvideo-notification-worker"},
+            "metric", "feedvideo_notif_consumers", "job", ".*"
+          )
+          or label_replace(
+            (up{job="feedvideo-notification-worker"} == 1)
+            unless on (job, instance) feedvideo_notif_consumers_known{job="feedvideo-notification-worker"},
+            "metric", "feedvideo_notif_consumers_known", "job", ".*"
+          )
+          or label_replace(
+            (up{job="feedvideo-media-worker"} == 1)
+            unless on (job, instance) feedvideo_media_tasks_queue_depth{job="feedvideo-media-worker"},
+            "metric", "feedvideo_media_tasks_queue_depth", "job", ".*"
+          )
+          or label_replace(
+            (up{job="feedvideo-media-worker"} == 1)
+            unless on (job, instance) feedvideo_media_processing_depth{job="feedvideo-media-worker"},
+            "metric", "feedvideo_media_processing_depth", "job", ".*"
+          )
+          or label_replace(
+            (up{job="feedvideo-media-worker"} == 1)
+            unless on (job, instance) feedvideo_media_active{job="feedvideo-media-worker"},
+            "metric", "feedvideo_media_active", "job", ".*"
+          )
+          or label_replace(
+            (up{job="feedvideo-media-worker"} == 1)
+            unless on (job, instance) feedvideo_media_oldest_task_age_seconds{job="feedvideo-media-worker"},
+            "metric", "feedvideo_media_oldest_task_age_seconds", "job", ".*"
+          )
+          or label_replace(
+            (up{job="feedvideo-readyz"} == 1)
+            unless on (job, instance) probe_success{job="feedvideo-readyz"},
+            "metric", "probe_success", "job", ".*"
+          )
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "必需指标缺失：{{ $labels.metric }}（{{ $labels.job }} {{ $labels.instance }}）"
+
+      # MQ publish failure > 0
+      - alert: FeedVideoMediaQueueBacklog
+        expr: feedvideo_media_tasks_queue_depth > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "媒体任务队列积压超过 500"
+
+      - alert: FeedVideoMediaProcessingStuck
+        expr: feedvideo_media_processing_depth > 0 and feedvideo_media_active == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "媒体 processing 队列有滞留但无活跃 worker（疑似崩溃恢复失效）"
+
+      - alert: FeedVideoMediaTaskTooOld
+        expr: feedvideo_media_oldest_task_age_seconds > 1800
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "媒体任务最老年龄超过 30 分钟"
+
+      - alert: FeedVideoOutboxPendingBacklog
+        expr: feedvideo_outbox_pending > 200
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox pending 事件超过 200"
+
+      - alert: FeedVideoNotifDLQGrowth
+        expr: rate(feedvideo_notif_dlq_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "通知事件持续进入 DLQ"
+      - alert: FeedVideoMQPublishFailures
+        expr: |
+          increase(feedvideo_mq_send_failure_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RabbitMQ 发布失败"
+
+      # DLQ 数量增长
+      - alert: FeedVideoDLQGrowing
+        expr: |
+          increase(feedvideo_media_worker_dlq_total{job="feedvideo-gateway"}[15m]) > 0
+          and on (job, instance)
+          feedvideo_legacy_metric_known{job="feedvideo-gateway",scope="gateway",key="media:dlq"} == 1
+          and on (job, instance)
+          up{job="feedvideo-gateway"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DLQ 消息数量在增长"
+
+      # Redis/ES fallback 增长
+      - alert: FeedVideoFallbackGrowing
+        expr: |
+          increase(feedvideo_fallback_total{target=~"redis|es"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "依赖降级（{{ $labels.target }}）在增长"
+
+      # MinIO 上传失败
+      - alert: FeedVideoMinIOUploadFailures
+        expr: |
+          increase(feedvideo_upload_failure_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MinIO 上传失败"
+
+      # 媒体任务持续失败
+      - alert: FeedVideoMediaProcessingFailures
+        expr: |
+          increase(feedvideo_media_worker_failed_total{job="feedvideo-gateway"}[15m]) > 0
+          and on (job, instance)
+          feedvideo_legacy_metric_known{job="feedvideo-gateway",scope="gateway",key="media:failed"} == 1
+          and on (job, instance)
+          up{job="feedvideo-gateway"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "媒体处理任务持续失败"
+
+      # A successful scrape can still contain unknown legacy observations.
+      # Optional missing counters alone are normal, not evidence of a reset.
+      - alert: FeedVideoLegacyMetricsSourceUnreliable
+        expr: |
+          max by (job, instance, scope) (
+            (feedvideo_legacy_metrics_read_success{job="feedvideo-gateway",scope="gateway"} == 0)
+            or (feedvideo_legacy_metrics_invalid_values{job="feedvideo-gateway",scope="gateway"} > 0)
+            or (feedvideo_legacy_metrics_read_success{job="feedvideo-media-worker",scope="media-worker"} == 0)
+            or (feedvideo_legacy_metrics_invalid_values{job="feedvideo-media-worker",scope="media-worker"} > 0)
+          )
+          and on (job, instance)
+          up{job=~"feedvideo-gateway|feedvideo-media-worker"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "legacy指标读取失败或缓存值无效（{{ $labels.job }} {{ $labels.instance }}）"
+
+      # Evidence gap, not a claim that the business worker has stopped.
+      # Mongo mode emits no legacy known metadata and is outside this rule.
+      - alert: FeedVideoLegacyMediaEvidenceInsufficient
+        expr: |
+          sum by (job, instance) (
+            feedvideo_media_tasks_queue_depth{job="feedvideo-media-worker"}
+            + feedvideo_media_processing_depth{job="feedvideo-media-worker"}
+          ) > 0
+          and on (job, instance)
+          max by (job, instance) (
+            feedvideo_legacy_metric_known{job="feedvideo-media-worker",scope="media-worker",key=~"media:active|queue:oldest_age"} == 0
+          )
+          and on (job, instance)
+          up{job="feedvideo-media-worker"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "legacy媒体队列有任务但活跃数或最老年龄缺少可信证据"
+
+      # 磁盘 / 容器内存接近上限（node-exporter / cAdvisor 指标）
+      - alert: FeedVideoDiskNearFull
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} /
+                node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "磁盘使用率超过 90%"
+
+      - alert: FeedVideoMemoryNearLimit
+        expr: |
+          (container_memory_working_set_bytes / container_spec_memory_limit_bytes) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "容器内存使用率超过 90%（{{ $labels.name }}）"
+
+      # 数据库连接池接近上限
+      - alert: FeedVideoDBPoolExhausted
+        expr: |
+          max_over_time(feedvideo_db_pool_in_use_ratio[5m]) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "数据库连接池使用率超过 90%"

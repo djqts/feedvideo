@@ -1,0 +1,2083 @@
+# Offline fixed-sample alert contracts; Prometheus 3.5.0.
+rule_files:
+  - "feedvideo.rules.yml"
+evaluation_interval: "1m"
+tests:
+  -
+    name: "E4_low_volume_5xx_fires_and_recovers"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0 1 1 1 1 1 1 1 1 1"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"5xx\"}"
+        values: "0 1 1 1 1 1 1 1 1 1"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoHigh5xxRate"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoHigh5xxRate"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "Gateway 5xx 比例超过 1%"
+      -
+        eval_time: "8m"
+        alertname: "FeedVideoHigh5xxRate"
+        exp_alerts: []
+  -
+    name: "E4_instances_do_not_dilute_each_other"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+1x10"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"5xx\"}"
+        values: "0+1x10"
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"healthy\"}"
+        values: "0+10000x10"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"healthy\",class=\"5xx\"}"
+        values: "0+0x10"
+    alert_rule_test:
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoHigh5xxRate"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "Gateway 5xx 比例超过 1%"
+  -
+    name: "E4_other_jobs_cannot_pollute_http_rate"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+100x10"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"5xx\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_requests_total{job=\"other-service\",instance=\"bad\"}"
+        values: "0+100x10"
+      -
+        series: "feedvideo_http_errors_total{job=\"other-service\",instance=\"bad\",class=\"5xx\"}"
+        values: "0+100x10"
+    alert_rule_test:
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoHigh5xxRate"
+        exp_alerts: []
+  -
+    name: "E4_exact_one_percent_and_counter_reset"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0 100 200 300 0 100 200 300 400 500 600"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"5xx\"}"
+        values: "0 1 2 3 0 1 2 3 4 5 6"
+    alert_rule_test:
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoHigh5xxRate"
+        exp_alerts: []
+      -
+        eval_time: "8m"
+        alertname: "FeedVideoHigh5xxRate"
+        exp_alerts: []
+  -
+    name: "E4_window_p95_overflow_and_recovery"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_http_request_duration_p95{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\"}"
+        values: "10+0x22"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.005\"}"
+        values: "0+0x22"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.01\"}"
+        values: "0+0x22"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.025\"}"
+        values: "0+0x22"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.05\"}"
+        values: "0+0x22"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.1\"}"
+        values: "0+0x10 100+100x11"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.25\"}"
+        values: "0+0x10 100+100x11"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.5\"}"
+        values: "0+0x10 100+100x11"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"1\"}"
+        values: "0+0x10 100+100x11"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"2.5\"}"
+        values: "0+0x10 100+100x11"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"5\"}"
+        values: "0+0x10 100+100x11"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"10\"}"
+        values: "0+0x10 100+100x11"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"+Inf\"}"
+        values: "0+100x22"
+    alert_rule_test:
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoHighP95Latency"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoHighP95Latency"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "warning"
+              route: "/videos/:id"
+            exp_annotations:
+              summary: "路由 /videos/:id P95 延迟超过 5s"
+      -
+        eval_time: "17m"
+        alertname: "FeedVideoHighP95Latency"
+        exp_alerts: []
+  -
+    name: "E4_other_job_cannot_trigger_p95"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_http_request_duration_p95{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\"}"
+        values: "10+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.005\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"0.005\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.01\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"0.01\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.025\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"0.025\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.05\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"0.05\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.1\"}"
+        values: "0+100x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"0.1\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.25\"}"
+        values: "0+100x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"0.25\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.5\"}"
+        values: "0+100x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"0.5\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"1\"}"
+        values: "0+100x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"1\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"2.5\"}"
+        values: "0+100x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"2.5\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"5\"}"
+        values: "0+100x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"5\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"10\"}"
+        values: "0+100x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"10\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"+Inf\"}"
+        values: "0+100x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"other-service\",instance=\"bad\",route=\"/videos/:id\",le=\"+Inf\"}"
+        values: "0+100x12"
+    alert_rule_test:
+      -
+        eval_time: "7m"
+        alertname: "FeedVideoHighP95Latency"
+        exp_alerts: []
+  -
+    name: "E4_healthy_instance_cannot_dilute_slow_instance"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.005\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"0.005\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.01\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"0.01\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.025\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"0.025\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.05\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"0.05\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.1\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"0.1\"}"
+        values: "0+10000x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.25\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"0.25\"}"
+        values: "0+10000x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.5\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"0.5\"}"
+        values: "0+10000x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"1\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"1\"}"
+        values: "0+10000x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"2.5\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"2.5\"}"
+        values: "0+10000x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"5\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"5\"}"
+        values: "0+10000x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"10\"}"
+        values: "0+0x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"10\"}"
+        values: "0+10000x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"+Inf\"}"
+        values: "0+1x12"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"healthy\",route=\"/videos/:id\",le=\"+Inf\"}"
+        values: "0+10000x12"
+    alert_rule_test:
+      -
+        eval_time: "7m"
+        alertname: "FeedVideoHighP95Latency"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "warning"
+              route: "/videos/:id"
+            exp_annotations:
+              summary: "路由 /videos/:id P95 延迟超过 5s"
+  -
+    name: "E4_all_targets_down_and_recover"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+0x3 1+0x3"
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x3 1+0x3"
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x3 1+0x3"
+      -
+        series: "up{job=\"feedvideo-readyz\",instance=\"bad\"}"
+        values: "0+0x3 1+0x3"
+    alert_rule_test:
+      -
+        eval_time: "0m"
+        alertname: "FeedVideoMetricsTargetDown"
+        exp_alerts: []
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoMetricsTargetDown"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "指标抓取持续失败（feedvideo-gateway bad）"
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "指标抓取持续失败（feedvideo-notification-worker bad）"
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "指标抓取持续失败（feedvideo-media-worker bad）"
+          -
+            exp_labels:
+              job: "feedvideo-readyz"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "指标抓取持续失败（feedvideo-readyz bad）"
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoMetricsTargetDown"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+  -
+    name: "E4_all_jobs_absent_and_recover"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "_ _ _ _ 1+0x5"
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "_ _ _ _ 1+0x5"
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "_ _ _ _ 1+0x5"
+      -
+        series: "up{job=\"feedvideo-readyz\",instance=\"bad\"}"
+        values: "_ _ _ _ 1+0x5"
+    alert_rule_test:
+      -
+        eval_time: "0m"
+        alertname: "FeedVideoMetricsJobMissing"
+        exp_alerts: []
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoMetricsJobMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              severity: "critical"
+            exp_annotations:
+              summary: "监控 job 缺失：feedvideo-gateway"
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              severity: "critical"
+            exp_annotations:
+              summary: "监控 job 缺失：feedvideo-notification-worker"
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              severity: "critical"
+            exp_annotations:
+              summary: "监控 job 缺失：feedvideo-media-worker"
+          -
+            exp_labels:
+              job: "feedvideo-readyz"
+              severity: "critical"
+            exp_annotations:
+              summary: "监控 job 缺失：feedvideo-readyz"
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoMetricsJobMissing"
+        exp_alerts: []
+  -
+    name: "E4_eight_required_metrics_missing_and_recover"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "up{job=\"feedvideo-readyz\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "_ _ _ _ 0+0x6"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"5xx\"}"
+        values: "_ _ _ _ 0+0x6"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "_ _ _ _ 0+0x6"
+      -
+        series: "feedvideo_media_tasks_queue_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "_ _ _ _ 0+0x6"
+      -
+        series: "feedvideo_media_processing_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "_ _ _ _ 0+0x6"
+      -
+        series: "feedvideo_media_active{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "_ _ _ _ 0+0x6"
+      -
+        series: "feedvideo_media_oldest_task_age_seconds{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "_ _ _ _ 0+0x6"
+      -
+        series: "probe_success{job=\"feedvideo-readyz\",instance=\"bad\"}"
+        values: "_ _ _ _ 0+0x6"
+    alert_rule_test:
+      -
+        eval_time: "0m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              metric: "feedvideo_http_requests_total"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_http_requests_total（feedvideo-gateway bad）"
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              metric: "feedvideo_http_errors_total"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_http_errors_total（feedvideo-gateway bad）"
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              metric: "feedvideo_notif_received_total"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_notif_received_total（feedvideo-notification-worker bad）"
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              metric: "feedvideo_media_tasks_queue_depth"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_media_tasks_queue_depth（feedvideo-media-worker bad）"
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              metric: "feedvideo_media_processing_depth"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_media_processing_depth（feedvideo-media-worker bad）"
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              metric: "feedvideo_media_active"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_media_active（feedvideo-media-worker bad）"
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              metric: "feedvideo_media_oldest_task_age_seconds"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_media_oldest_task_age_seconds（feedvideo-media-worker bad）"
+          -
+            exp_labels:
+              job: "feedvideo-readyz"
+              instance: "bad"
+              metric: "probe_success"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：probe_success（feedvideo-readyz bad）"
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+  -
+    name: "E4_other_instances_jobs_and_class_cannot_fill_missing"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x5"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"healthy\"}"
+        values: "1+0x5"
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"healthy\"}"
+        values: "0+0x5"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"healthy\",class=\"5xx\"}"
+        values: "0+0x5"
+      -
+        series: "feedvideo_http_requests_total{job=\"other-service\",instance=\"bad\"}"
+        values: "0+0x5"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"4xx\"}"
+        values: "0+0x5"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              metric: "feedvideo_http_requests_total"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_http_requests_total（feedvideo-gateway bad）"
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              metric: "feedvideo_http_errors_total"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_http_errors_total（feedvideo-gateway bad）"
+  -
+    name: "E4_complete_zero_is_not_failure"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "up{job=\"feedvideo-readyz\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"5xx\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_media_tasks_queue_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_media_processing_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_media_active{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_media_oldest_task_age_seconds{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "probe_success{job=\"feedvideo-readyz\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_mq_consumers{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_http_request_duration_p95{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.005\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.01\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.025\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.05\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.1\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.25\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"0.5\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"1\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"2.5\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"5\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"10\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_http_request_duration_seconds_bucket{job=\"feedvideo-gateway\",instance=\"bad\",route=\"/videos/:id\",le=\"+Inf\"}"
+        values: "0+0x10"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoHigh5xxRate"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoHighP95Latency"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoMetricsTargetDown"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoMetricsJobMissing"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+  -
+    name: "E4_unobserved_routes_are_not_required"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x5"
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+0x5"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"5xx\"}"
+        values: "0+0x5"
+    alert_rule_test:
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoHighP95Latency"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoHigh5xxRate"
+        exp_alerts: []
+  -
+    name: "E4_stale_required_metric_and_recovery"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x8"
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0 0 stale _ _ 0+0x3"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"5xx\"}"
+        values: "0+0x8"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              metric: "feedvideo_http_requests_total"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_http_requests_total（feedvideo-gateway bad）"
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+  -
+    name: "E4_quiet_missing_sample_waits_for_lookback"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x12"
+      -
+        series: "feedvideo_http_requests_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0 0 _ _ _ _ _ _ _ _ 0+0x2"
+      -
+        series: "feedvideo_http_errors_total{job=\"feedvideo-gateway\",instance=\"bad\",class=\"5xx\"}"
+        values: "0+0x12"
+    alert_rule_test:
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+      -
+        eval_time: "8m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              metric: "feedvideo_http_requests_total"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_http_requests_total（feedvideo-gateway bad）"
+      -
+        eval_time: "10m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+  -
+    name: "E4_stale_job_and_recovery"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x7"
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x7"
+      -
+        series: "up{job=\"feedvideo-readyz\",instance=\"bad\"}"
+        values: "1+0x7"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1 1 stale _ _ 1+0x2"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoMetricsJobMissing"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoMetricsJobMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              severity: "critical"
+            exp_annotations:
+              summary: "监控 job 缺失：feedvideo-gateway"
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoMetricsJobMissing"
+        exp_alerts: []
+  -
+    name: "E4_probe_missing_then_failed_then_recovered"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-readyz\",instance=\"bad\"}"
+        values: "1+0x9"
+      -
+        series: "probe_success{job=\"feedvideo-readyz\",instance=\"bad\"}"
+        values: "_ _ _ 0 0 0 1+0x3"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-readyz"
+              instance: "bad"
+              metric: "probe_success"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：probe_success（feedvideo-readyz bad）"
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoNotReady"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoNotReady"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-readyz"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "/readyz 连续 1 分钟不可用"
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoNotReady"
+        exp_alerts: []
+  -
+    name: "E5_idle_is_healthy"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+  -
+    name: "E5_confirmed_zero_and_recovery"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x3 1+0x6"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "通知 worker 无已确认活跃消费者"
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+  -
+    name: "E5_unknown_and_fresh_recovery"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "-1+0x3 1+0x6"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x3 1+0x6"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "通知 worker 消费者状态持续未知"
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+  -
+    name: "E5_brief_unknown_never_fires"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1 -1 1+0x8"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1 0 1+0x8"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+  -
+    name: "E5_known_zero_is_unknown_even_positive_count"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "通知 worker 消费者状态持续未知"
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+  -
+    name: "E5_negative_count_is_unknown_even_known_one"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "-1+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "通知 worker 消费者状态持续未知"
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+  -
+    name: "E5_instance_and_job_isolation"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"healthy\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"healthy\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"healthy\"}"
+        values: "1+0x10"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "-1+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+0x10"
+    alert_rule_test:
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "通知 worker 无已确认活跃消费者"
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+  -
+    name: "E5_missing_known_is_monitoring_fault"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              metric: "feedvideo_notif_consumers_known"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_notif_consumers_known（feedvideo-notification-worker bad）"
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+  -
+    name: "E5_missing_active_is_monitoring_fault"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              metric: "feedvideo_notif_consumers"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_notif_consumers（feedvideo-notification-worker bad）"
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+  -
+    name: "E5_both_missing_recover"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "_ _ _ 1+0x7"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "_ _ _ 1+0x7"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              metric: "feedvideo_notif_consumers"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_notif_consumers（feedvideo-notification-worker bad）"
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              metric: "feedvideo_notif_consumers_known"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_notif_consumers_known（feedvideo-notification-worker bad）"
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+  -
+    name: "E5_stale_fields_do_not_count_as_recovery"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "1+0x10"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "-1 -1 stale _ _ 1+0x5"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0 0 stale _ _ 1+0x5"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              metric: "feedvideo_notif_consumers"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_notif_consumers（feedvideo-notification-worker bad）"
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              metric: "feedvideo_notif_consumers_known"
+              severity: "critical"
+            exp_annotations:
+              summary: "必需指标缺失：feedvideo_notif_consumers_known（feedvideo-notification-worker bad）"
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoRequiredMetricMissing"
+        exp_alerts: []
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+  -
+    name: "E5_down_cedes_to_scrape_alarm"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x3 1+0x6"
+      -
+        series: "feedvideo_notif_received_total{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+      -
+        series: "feedvideo_notif_consumers{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "-1+0x10"
+      -
+        series: "feedvideo_notif_consumers_known{job=\"feedvideo-notification-worker\",instance=\"bad\"}"
+        values: "0+0x10"
+    alert_rule_test:
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+      -
+        eval_time: "3m"
+        alertname: "FeedVideoNoMQConsumers"
+        exp_alerts: []
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoMetricsTargetDown"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "指标抓取持续失败（feedvideo-notification-worker bad）"
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoNotifConsumerStateUnknown"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-notification-worker"
+              instance: "bad"
+              severity: "critical"
+            exp_annotations:
+              summary: "通知 worker 消费者状态持续未知"
+# E6 fixed legacy-source contracts.
+  -
+    name: "E6_gateway_read_failure_and_recovery"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x3 1+0x16"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "-1+0x3 0+0x16"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "warning"
+              scope: "gateway"
+            exp_annotations:
+              summary: "legacy指标读取失败或缓存值无效（feedvideo-gateway bad）"
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+  -
+    name: "E6_gateway_invalid_optional_cache"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "1+0x3 0+0x16"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "warning"
+              scope: "gateway"
+            exp_annotations:
+              summary: "legacy指标读取失败或缓存值无效（feedvideo-gateway bad）"
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+  -
+    name: "E6_media-worker_read_failure_and_recovery"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\"}"
+        values: "0+0x3 1+0x16"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\"}"
+        values: "-1+0x3 0+0x16"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              severity: "warning"
+              scope: "media-worker"
+            exp_annotations:
+              summary: "legacy指标读取失败或缓存值无效（feedvideo-media-worker bad）"
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+  -
+    name: "E6_media-worker_invalid_optional_cache"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\"}"
+        values: "1+0x3 0+0x16"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              severity: "warning"
+              scope: "media-worker"
+            exp_annotations:
+              summary: "legacy指标读取失败或缓存值无效（feedvideo-media-worker bad）"
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+  -
+    name: "E6_brief_source_fault_does_not_fire"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "1 0 1+0x18"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+  -
+    name: "E6_optional_counter_absence_is_not_fault"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\",key=\"media:failed\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoMediaProcessingFailures"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoDLQGrowing"
+        exp_alerts: []
+  -
+    name: "E6_source_scope_job_instance_isolation"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x20"
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x20"
+      -
+        series: "up{job=\"other-job\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"other-job\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"other-job\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-gateway\",instance=\"unregistered\",scope=\"gateway\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+  -
+    name: "E6_source_down_cedes_to_scrape_alarm"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metrics_read_success{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metrics_invalid_values{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoLegacyMetricsSourceUnreliable"
+        exp_alerts: []
+  -
+    name: "E6_nonempty_legacy_queue_warns_then_recovers"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_tasks_queue_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x3 0+0x16"
+      -
+        series: "feedvideo_media_processing_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_media_active{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_media_oldest_task_age_seconds{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"media:active\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"queue:oldest_age\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "1m"
+        alertname: "FeedVideoLegacyMediaEvidenceInsufficient"
+        exp_alerts: []
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoLegacyMediaEvidenceInsufficient"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              severity: "warning"
+            exp_annotations:
+              summary: "legacy媒体队列有任务但活跃数或最老年龄缺少可信证据"
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoLegacyMediaEvidenceInsufficient"
+        exp_alerts: []
+      -
+        eval_time: "11m"
+        alertname: "FeedVideoMediaProcessingStuck"
+        exp_alerts: []
+      -
+        eval_time: "11m"
+        alertname: "FeedVideoMediaTaskTooOld"
+        exp_alerts: []
+  -
+    name: "E6_processing_unknown_is_evidence_gap"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_tasks_queue_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_media_processing_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_active{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_media_oldest_task_age_seconds{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"media:active\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"queue:oldest_age\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "2m"
+        alertname: "FeedVideoLegacyMediaEvidenceInsufficient"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              severity: "warning"
+            exp_annotations:
+              summary: "legacy媒体队列有任务但活跃数或最老年龄缺少可信证据"
+      -
+        eval_time: "11m"
+        alertname: "FeedVideoMediaProcessingStuck"
+        exp_alerts: []
+  -
+    name: "E6_empty_queue_does_not_warn_for_unknown_active"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_tasks_queue_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_media_processing_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_media_active{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_media_oldest_task_age_seconds{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"media:active\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"queue:oldest_age\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoLegacyMediaEvidenceInsufficient"
+        exp_alerts: []
+  -
+    name: "E6_mongo_without_legacy_metadata_is_untouched"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_tasks_queue_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_processing_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_media_active{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_media_oldest_task_age_seconds{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoLegacyMediaEvidenceInsufficient"
+        exp_alerts: []
+  -
+    name: "E6_media_down_and_foreign_metadata_do_not_warn"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_media_tasks_queue_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_processing_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_media_active{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_media_oldest_task_age_seconds{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"media:active\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"queue:oldest_age\"}"
+        values: "0+0x20"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"media-worker\",key=\"media:active\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoLegacyMediaEvidenceInsufficient"
+        exp_alerts: []
+  -
+    name: "E6_trusted_queue_backlog_keeps_existing_threshold"
+    interval: "1m"
+    input_series:
+      -
+        series: "up{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_tasks_queue_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "501+0x20"
+      -
+        series: "feedvideo_media_processing_depth{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_media_active{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_media_oldest_task_age_seconds{job=\"feedvideo-media-worker\",instance=\"bad\"}"
+        values: "-1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"media:active\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-media-worker\",instance=\"bad\",scope=\"media-worker\",key=\"queue:oldest_age\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "4m"
+        alertname: "FeedVideoMediaQueueBacklog"
+        exp_alerts: []
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoMediaQueueBacklog"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-media-worker"
+              instance: "bad"
+              severity: "warning"
+            exp_annotations:
+              summary: "媒体任务队列积压超过 500"
+  -
+    name: "E6_media:failed_known_fires_without_threshold_change"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_media_worker_failed_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\",key=\"media:failed\"}"
+        values: "1+0x20"
+    alert_rule_test:
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoMediaProcessingFailures"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoMediaProcessingFailures"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "warning"
+            exp_annotations:
+              summary: "媒体处理任务持续失败"
+  -
+    name: "E6_media:failed_unknown_blocks_historical_increase"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_media_worker_failed_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+1x6 stale _ _ _ _ _ _ _ _ _ _ _ _ _"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\",key=\"media:failed\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoMediaProcessingFailures"
+        exp_alerts: []
+      -
+        eval_time: "9m"
+        alertname: "FeedVideoMediaProcessingFailures"
+        exp_alerts: []
+  -
+    name: "E6_media:failed_recovery_waits_original_for_duration"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_media_worker_failed_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\",key=\"media:failed\"}"
+        values: "0+0x7 1+0x12"
+    alert_rule_test:
+      -
+        eval_time: "7m"
+        alertname: "FeedVideoMediaProcessingFailures"
+        exp_alerts: []
+      -
+        eval_time: "12m"
+        alertname: "FeedVideoMediaProcessingFailures"
+        exp_alerts: []
+      -
+        eval_time: "14m"
+        alertname: "FeedVideoMediaProcessingFailures"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "warning"
+            exp_annotations:
+              summary: "媒体处理任务持续失败"
+  -
+    name: "E6_media:failed_down_foreign_job_other_instance_cannot_confirm"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_media_worker_failed_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\",key=\"media:failed\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_worker_failed_total{job=\"other-job\",instance=\"bad\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"other-job\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"other-job\",instance=\"bad\",scope=\"gateway\",key=\"media:failed\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_worker_failed_total{job=\"feedvideo-gateway\",instance=\"unconfirmed\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"unconfirmed\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"healthy\",scope=\"gateway\",key=\"media:failed\"}"
+        values: "1+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoMediaProcessingFailures"
+        exp_alerts: []
+  -
+    name: "E6_media:dlq_known_fires_without_threshold_change"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_media_worker_dlq_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\",key=\"media:dlq\"}"
+        values: "1+0x20"
+    alert_rule_test:
+      -
+        eval_time: "5m"
+        alertname: "FeedVideoDLQGrowing"
+        exp_alerts: []
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoDLQGrowing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "warning"
+            exp_annotations:
+              summary: "DLQ 消息数量在增长"
+  -
+    name: "E6_media:dlq_unknown_blocks_historical_increase"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_media_worker_dlq_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+1x6 stale _ _ _ _ _ _ _ _ _ _ _ _ _"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\",key=\"media:dlq\"}"
+        values: "0+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoDLQGrowing"
+        exp_alerts: []
+      -
+        eval_time: "9m"
+        alertname: "FeedVideoDLQGrowing"
+        exp_alerts: []
+  -
+    name: "E6_media:dlq_recovery_waits_original_for_duration"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_media_worker_dlq_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\",key=\"media:dlq\"}"
+        values: "0+0x7 1+0x12"
+    alert_rule_test:
+      -
+        eval_time: "7m"
+        alertname: "FeedVideoDLQGrowing"
+        exp_alerts: []
+      -
+        eval_time: "12m"
+        alertname: "FeedVideoDLQGrowing"
+        exp_alerts: []
+      -
+        eval_time: "14m"
+        alertname: "FeedVideoDLQGrowing"
+        exp_alerts:
+          -
+            exp_labels:
+              job: "feedvideo-gateway"
+              instance: "bad"
+              severity: "warning"
+            exp_annotations:
+              summary: "DLQ 消息数量在增长"
+  -
+    name: "E6_media:dlq_down_foreign_job_other_instance_cannot_confirm"
+    interval: "1m"
+    input_series:
+      -
+        series: "feedvideo_media_worker_dlq_total{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"bad\"}"
+        values: "0+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"bad\",scope=\"gateway\",key=\"media:dlq\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_worker_dlq_total{job=\"other-job\",instance=\"bad\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"other-job\",instance=\"bad\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"other-job\",instance=\"bad\",scope=\"gateway\",key=\"media:dlq\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_media_worker_dlq_total{job=\"feedvideo-gateway\",instance=\"unconfirmed\"}"
+        values: "0+1x20"
+      -
+        series: "up{job=\"feedvideo-gateway\",instance=\"unconfirmed\"}"
+        values: "1+0x20"
+      -
+        series: "feedvideo_legacy_metric_known{job=\"feedvideo-gateway\",instance=\"healthy\",scope=\"gateway\",key=\"media:dlq\"}"
+        values: "1+0x20"
+    alert_rule_test:
+      -
+        eval_time: "6m"
+        alertname: "FeedVideoDLQGrowing"
+        exp_alerts: []

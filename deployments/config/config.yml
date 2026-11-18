@@ -1,0 +1,94 @@
+# =============================================================================
+# FeedVideo Gateway 配置（P0.2）
+# 本文件只保留非敏感拓扑信息；所有凭据由环境变量注入：
+#   MYSQL_PASSWORD / MYSQL_USER、MONGO_URI、REDIS_PASSWORD、
+#   RABBITMQ_URL / RABBITMQ_USER / RABBITMQ_PASS、
+#   MINIO_ACCESS_KEY / MINIO_SECRET_KEY、JWT_SECRET_KEY
+# =============================================================================
+
+app:
+  name: feedvideo
+  port: ":8080"
+  env: ""
+
+admin_ids:
+  - "26"
+
+database:
+  default: mysql
+  pool:
+    maxIdleConns: 10
+    maxOpenConns: 100
+    connMaxLifetime: 60
+    connMaxIdleTime: 10
+  drivers:
+    mysql:
+      host: "mysql"
+      port: 3306
+      username: ""
+      password: ""
+      dbName: "feedvideo"
+      charset: utf8mb4
+      parseTime: true
+      loc: Local
+    postgres:
+      host: ""
+    sqlite:
+      file: ""
+
+secretKey: ""
+
+redis:
+  addr: "redis:6379"
+  password: ""
+  db: 0
+
+MongoDB:
+  uri: ""
+  database: "feedvideo"
+
+elasticsearch:
+  addresses: ["http://elasticsearch:9200"]
+  username: ""
+  password: ""
+  ca_cert: ""
+  max_retries: 3
+  retry_on_status: [502, 503, 504]
+  timeout: 30s
+  enable_debug: false
+
+rabbitmq:
+  addr: ""
+  username: ""
+  password: ""
+  vhost: "/"
+
+kafka:
+  brokers: [""]
+
+Slog:
+  folder: "logs"
+FileBeat:
+
+feed:
+  pool_ttl: 300
+  recall_size: 200
+  dedup_max: 2000
+  dedup_ttl: 86400
+  build_timeout_ms: 500
+  weights:
+    hotness: 0.5
+    interest: 0.3
+    recency: 0.2
+
+notification:
+  admin_ids: ["26"]
+
+search:
+  cache_ttl: 300
+  hot_max: 100
+  suggest_max: 10
+  suggest_prefix_min: 1
+
+creator:
+  cpm: 2.0

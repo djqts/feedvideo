@@ -1,0 +1,2384 @@
+basePath: /
+definitions:
+  model.SearchResponse:
+    properties:
+      items: {}
+      total:
+        type: integer
+    type: object
+  model.UserLoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  model.UserProfileRequest:
+    properties:
+      avatar:
+        type: string
+      bio:
+        type: string
+      city:
+        type: string
+      gender:
+        type: string
+      update_at:
+        type: string
+      username:
+        type: string
+    type: object
+  model.UserProfileResponse:
+    properties:
+      avatar:
+        type: string
+      bio:
+        type: string
+      city:
+        type: string
+      follower_count:
+        type: integer
+      following_count:
+        type: integer
+      gender:
+        type: string
+      is_degraded:
+        type: boolean
+      is_online:
+        type: boolean
+      last_seen:
+        type: integer
+      post_count:
+        type: integer
+      top_tags:
+        description: 推荐标签展示
+        items:
+          type: string
+        type: array
+      user_id:
+        type: integer
+      username:
+        type: string
+    type: object
+  model.UserRegisterRequest:
+    properties:
+      password:
+        minLength: 8
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  service.PublishReq:
+    properties:
+      cover_url:
+        type: string
+      description:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      music:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      upload_id:
+        type: string
+      video_url:
+        type: string
+    type: object
+  service.SyncStatsReq:
+    properties:
+      video_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  service.UpdateVideoReq:
+    properties:
+      cover_url:
+        type: string
+      description:
+        type: string
+      music:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: FeedVideo Team
+  description: FeedVideo 短视频平台后端接口文档。登录后通过 httpOnly Cookie 携带 JWT；可选认证接口在未登录时降级为公开访问。
+  title: FeedVideo API
+  version: 1.0.0
+paths:
+  /api/v1/admin/comments/{id}/restore:
+    put:
+      description: 将 hidden 评论恢复为 active，并原子补回一次 comment_count
+      parameters:
+      - description: 评论 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: restored
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: 非管理员
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: 存储不可用
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 恢复被举报隐藏的评论（管理员）
+      tags:
+      - 审核
+  /api/v1/admin/media/dlq/replay:
+    post:
+      parameters:
+      - description: limit 重放数量
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 重放数量
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 重放媒体 DLQ 任务（管理员，attempt 重置）
+      tags:
+      - 管理
+  /api/v1/admin/notifications/dlq/replay:
+    post:
+      description: 将 notifications_dlq 中的消息重放回 notifications 队列（仅管理员）
+      parameters:
+      - default: 100
+        description: 重放条数（默认 100，最大 1000）
+        in: query
+        name: count
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 重放结果 {requeued}
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: 非管理员
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: MQ 不可用
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 重放死信通知
+      tags:
+      - 管理后台
+  /api/v1/admin/outbox/replay:
+    post:
+      parameters:
+      - description: event_ids 指定重放；否则按 limit 取最早 failed
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 重放数量
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 重放 failed 的 Outbox 事件（管理员）
+      tags:
+      - 管理
+  /api/v1/admin/reports:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 举报列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: 非管理员
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 举报列表（管理员）
+      tags:
+      - 审核
+  /api/v1/admin/stats:
+    get:
+      description: 聚合视频/用户/互动等平台级数据
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 平台统计
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 平台运营统计（管理员）
+      tags:
+      - 管理后台
+  /api/v1/admin/users/{uid}/ban:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: uid
+        required: true
+        type: integer
+      - description: 'banned: bool'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: 非管理员
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 封禁/解封用户（管理员）
+      tags:
+      - 审核
+  /api/v1/admin/users/{uid}/mute:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: uid
+        required: true
+        type: integer
+      - description: 'muted: bool'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: 非管理员
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 禁言/取消禁言用户（管理员）
+      tags:
+      - 审核
+  /api/v1/admin/videos:
+    get:
+      description: 返回指定审核状态的视频，默认 pending，用于管理后台审核
+      parameters:
+      - default: pending
+        description: pending/rejected/approved
+        in: query
+        name: status
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 视频列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: 读取不可用
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 待审核视频列表（管理员）
+      tags:
+      - 管理
+  /api/v1/auth/me:
+    get:
+      description: 返回当前登录用户的 uid 与角色（user/admin）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 当前用户信息
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取当前认证用户信息
+      tags:
+      - 用户
+  /api/v1/behavior/stats:
+    get:
+      description: 聚合 play/like/collect/share/follow 行为次数（1-30 天）
+      parameters:
+      - default: 7
+        description: 统计天数(1-30)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 行为统计 {actions}
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 用户行为统计
+      tags:
+      - 统计
+  /api/v1/collect:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: video_id
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 收藏结果
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 收藏视频
+      tags:
+      - 收藏
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 版本号
+        in: header
+        name: If-Match
+        type: string
+      - description: video_id + collected
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 收藏结果
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 设置收藏状态（条件更新）
+      tags:
+      - 收藏
+  /api/v1/collect/check:
+    get:
+      parameters:
+      - description: 视频 ID
+        in: query
+        name: video_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 收藏状态
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 查询是否已收藏
+      tags:
+      - 收藏
+  /api/v1/collect/list:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 收藏列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 收藏列表
+      tags:
+      - 收藏
+  /api/v1/comments/{id}:
+    delete:
+      parameters:
+      - description: 评论 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 删除评论
+      tags:
+      - 评论
+  /api/v1/comments/{id}/like:
+    delete:
+      parameters:
+      - description: 评论 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取消成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 取消评论点赞
+      tags:
+      - 评论
+    post:
+      parameters:
+      - description: 评论 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 点赞成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 点赞评论
+      tags:
+      - 评论
+  /api/v1/comments/{id}/report:
+    post:
+      consumes:
+      - application/json
+      description: 举报写入 ES reports 索引，供管理后台处理
+      parameters:
+      - description: 评论 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'reason: 举报原因'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 举报成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 举报评论
+      tags:
+      - 评论
+  /api/v1/creator/revenue:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 估算收益(CPM×播放/1000)
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 创作者收益估算
+      tags:
+      - 创作者中心
+  /api/v1/creator/stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 播放/点赞/评论/收藏/粉丝统计
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 创作者数据统计
+      tags:
+      - 创作者中心
+  /api/v1/creator/verify/{uid}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 目标用户 ID
+        in: path
+        name: uid
+        required: true
+        type: integer
+      - description: 'verified: bool'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: 非管理员
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 目标用户不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "413":
+          description: 请求体超限
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: 认证资料或依赖暂不可用
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 创作者认证管理（管理员）
+      tags:
+      - 创作者中心
+  /api/v1/feed:
+    get:
+      description: 支持 recommend(推荐) / following(关注) / nearby(同城) / hot(热门)，可选认证
+      parameters:
+      - default: hot
+        description: '类型: recommend/following/nearby/hot'
+        in: query
+        name: type
+        type: string
+      - default: 10
+        description: 数量(1-50)
+        in: query
+        name: size
+        type: integer
+      - description: 经度(nearby)
+        in: query
+        name: lng
+        type: number
+      - description: 纬度(nearby)
+        in: query
+        name: lat
+        type: number
+      - default: 5000
+        description: 半径米(nearby)
+        in: query
+        name: radius
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Feed 列表 {list, has_more}
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: 视频来源暂时不可用
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取 Feed 信息流
+      tags:
+      - Feed
+  /api/v1/likes:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: target_id + target_type(video/comment)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取消成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 取消点赞
+      tags:
+      - 互动
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: target_id + target_type(video/comment)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 点赞成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 点赞（视频或评论）
+      tags:
+      - 互动
+  /api/v1/likes/check:
+    get:
+      parameters:
+      - description: 目标 ID
+        in: query
+        name: target_id
+        required: true
+        type: string
+      - description: video/comment
+        in: query
+        name: target_type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: is_liked
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 查询是否已点赞
+      tags:
+      - 互动
+  /api/v1/likes/count:
+    get:
+      parameters:
+      - description: 目标 ID
+        in: query
+        name: target_id
+        required: true
+        type: string
+      - description: video/comment
+        in: query
+        name: target_type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: count
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取点赞数量（公开）
+      tags:
+      - 互动
+  /api/v1/notifications:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 类型过滤 like/comment/follow/system
+        in: query
+        name: type
+        type: string
+      - default: all
+        description: all/unread
+        in: query
+        name: read
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 通知列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取通知列表
+      tags:
+      - 通知
+  /api/v1/notifications/read:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ids(通知ID数组) 或 all=true 全部已读
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 标记通知已读
+      tags:
+      - 通知
+  /api/v1/notifications/system:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: recipient_ids + content
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 发送成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: 非管理员
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 发送系统通知（管理员）
+      tags:
+      - 通知
+  /api/v1/notifications/unread-count:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 按类型未读数 {by_type, total}
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取未读通知数
+      tags:
+      - 通知
+  /api/v1/recommend/for-you:
+    get:
+      description: 协同过滤 + 内容 + 热度三路召回并加权排序
+      parameters:
+      - default: 20
+        description: 数量
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 推荐视频列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 个性化推荐（For You）
+      tags:
+      - 推荐
+  /api/v1/recommend/similar/{video_id}:
+    get:
+      description: 根据目标视频标签返回相似视频
+      parameters:
+      - description: 视频 ID
+        in: path
+        name: video_id
+        required: true
+        type: string
+      - default: 10
+        description: 数量
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 相似视频列表
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 相似视频推荐
+      tags:
+      - 推荐
+  /api/v1/search:
+    get:
+      description: 按 type 搜索视频 / 用户 / 标签，返回 schema_version=3 与分类状态；部分分类不可用时返回 200
+        且 partial=true
+      parameters:
+      - description: 搜索关键词，去除首尾空白后最多 50 个 Unicode 字符；空关键词返回空分类
+        in: query
+        name: q
+        type: string
+      - default: all
+        description: video/user/tag/all
+        in: query
+        name: type
+        type: string
+      - default: 1
+        description: 页码，范围 1..100
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量，范围 1..50
+        in: query
+        name: size
+        type: integer
+      - description: 续页候选位置，必须与 q/type/page/size 和当前搜索 index 一致
+        in: query
+        name: candidate_cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 搜索结果
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数非法、显式空值或重复；q 允许空值
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: 全部请求分类不可用
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 综合搜索
+      tags:
+      - 搜索
+  /api/v1/search/hot:
+    get:
+      parameters:
+      - default: 20
+        description: 数量
+        in: query
+        name: top_n
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 热搜词列表
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 热搜词
+      tags:
+      - 搜索
+  /api/v1/search/suggest:
+    get:
+      parameters:
+      - description: 前缀
+        in: query
+        name: prefix
+        required: true
+        type: string
+      - default: 10
+        description: 数量
+        in: query
+        name: top_n
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 联想词列表
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 搜索联想
+      tags:
+      - 搜索
+  /api/v1/share/{video_id}:
+    post:
+      parameters:
+      - description: 视频 ID
+        in: path
+        name: video_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分享成功 {share_count}
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 分享视频
+      tags:
+      - 互动
+  /api/v1/topics:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: name + description
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 话题创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 创建话题
+      tags:
+      - 话题
+  /api/v1/topics/{name}:
+    get:
+      parameters:
+      - description: 话题名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 话题详情 + 视频列表
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 按名称获取话题详情
+      tags:
+      - 话题
+  /api/v1/topics/hot:
+    get:
+      parameters:
+      - default: 20
+        description: 数量
+        in: query
+        name: top_n
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 热门话题列表
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 热门话题
+      tags:
+      - 话题
+  /api/v1/topics/id/{topicId}:
+    get:
+      parameters:
+      - description: 话题 ID
+        in: path
+        name: topicId
+        required: true
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 话题详情 + 视频列表
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 按 ID 获取话题详情
+      tags:
+      - 话题
+  /api/v1/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传到 MinIO 并返回 /storage/... URL；视频≤500MB(mp4/mov/webm)，封面≤10MB(jpg/png/webp)
+      parameters:
+      - description: 视频文件
+        in: formData
+        name: video
+        required: true
+        type: file
+      - description: 封面文件
+        in: formData
+        name: cover
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上传成功 {video_url, cover_url}
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 文件校验失败
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 上传失败
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 上传视频/封面文件
+      tags:
+      - 文件上传
+  /api/v1/users/{uid}/followers:
+    get:
+      parameters:
+      - description: 目标用户ID
+        in: path
+        name: uid
+        required: true
+        type: integer
+      - default: 0
+        description: 偏移量
+        in: query
+        name: offset
+        type: integer
+      - default: 20
+        description: 数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 粉丝 ID 列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: uid 无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取指定用户的粉丝列表（公开接口）
+      tags:
+      - 社交关系
+  /api/v1/users/{uid}/following:
+    get:
+      parameters:
+      - description: 目标用户ID
+        in: path
+        name: uid
+        required: true
+        type: integer
+      - default: 0
+        description: 偏移量
+        in: query
+        name: offset
+        type: integer
+      - default: 20
+        description: 数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 关注 ID 列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: uid 无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取指定用户的关注列表（公开接口）
+      tags:
+      - 社交关系
+  /api/v1/videos:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 状态过滤 approved（或不传）
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 视频列表
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 视频列表
+      tags:
+      - 视频
+    post:
+      consumes:
+      - application/json
+      description: 创建视频记录（status=pending，待审核），需先通过 /api/v1/upload 获取 video_url
+      parameters:
+      - description: 发布信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.PublishReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 发布成功 {video_id}
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 发布视频
+      tags:
+      - 视频
+  /api/v1/videos/{id}:
+    delete:
+      parameters:
+      - description: 视频 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 删除视频（软删除）
+      tags:
+      - 视频
+    get:
+      description: 返回视频信息与统计，可选认证（登录时附带点赞/收藏状态并记录播放）
+      parameters:
+      - description: 视频 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 视频详情
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取视频详情
+      tags:
+      - 视频
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 视频 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateVideoReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 更新视频信息
+      tags:
+      - 视频
+  /api/v1/videos/{id}/comments:
+    get:
+      parameters:
+      - description: 视频 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 评论列表
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取评论列表
+      tags:
+      - 评论
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 视频 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: content + 可选 parent_id
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 评论创建成功 {comment_id}
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 发表评论/回复
+      tags:
+      - 评论
+  /api/v1/videos/{id}/review:
+    put:
+      consumes:
+      - application/json
+      description: 将视频状态流转为 approved / rejected
+      parameters:
+      - description: 视频 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'status: approved/rejected'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 审核成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 视频审核
+      tags:
+      - 视频
+  /api/v1/videos/hot:
+    get:
+      parameters:
+      - default: 20
+        description: 数量
+        in: query
+        name: top_n
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 热门视频列表
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取热门视频
+      tags:
+      - 视频
+  /api/v1/videos/search:
+    get:
+      parameters:
+      - description: 作者用户 ID
+        in: query
+        name: author_id
+        type: string
+      - description: 关键词
+        in: query
+        name: keyword
+        type: string
+      - collectionFormat: csv
+        description: 标签
+        in: query
+        items:
+          type: string
+        name: tags
+        type: array
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 搜索结果
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 搜索视频
+      tags:
+      - 视频
+  /api/v1/videos/sync-stats:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 视频 ID 列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.SyncStatsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 同步结果
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 批量同步视频统计（Redis → Mongo）
+      tags:
+      - 视频
+  /black:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 'target_id: 拉黑用户ID'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 拉黑成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 拉黑用户
+      tags:
+      - 社交关系
+  /blacklist:
+    get:
+      parameters:
+      - default: 0
+        description: 偏移量
+        in: query
+        name: offset
+        type: integer
+      - default: 20
+        description: 数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 拉黑 ID 列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取拉黑列表
+      tags:
+      - 社交关系
+  /follow:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 'target_id: 被关注用户ID'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 关注成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误或不能关注自己/已拉黑
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 关注用户
+      tags:
+      - 社交关系
+  /followers:
+    get:
+      parameters:
+      - default: 0
+        description: 偏移量
+        in: query
+        name: offset
+        type: integer
+      - default: 20
+        description: 数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 粉丝 ID 列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取粉丝列表
+      tags:
+      - 社交关系
+  /following:
+    get:
+      parameters:
+      - default: 0
+        description: 偏移量
+        in: query
+        name: offset
+        type: integer
+      - default: 20
+        description: 数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 关注 ID 列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取关注列表
+      tags:
+      - 社交关系
+  /friends:
+    get:
+      parameters:
+      - default: 0
+        description: 偏移量
+        in: query
+        name: offset
+        type: integer
+      - default: 20
+        description: 数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 好友 ID 列表
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取好友列表（互相关注）
+      tags:
+      - 社交关系
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: 登录成功后通过 httpOnly Cookie 下发 access_token 与 refresh_token
+      parameters:
+      - description: 登录信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 用户名或密码错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 用户登录
+      tags:
+      - 用户
+  /logout:
+    post:
+      description: 清除服务端 refresh token 记录并清理 Cookie
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 退出成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 用户退出登录
+      tags:
+      - 用户
+  /profile:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户资料
+          schema:
+            $ref: '#/definitions/model.UserProfileResponse'
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取当前用户资料
+      tags:
+      - 用户
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 资料信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 更新用户资料
+      tags:
+      - 用户
+  /refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: 使用 refresh_token Cookie 换取新的 access_token / refresh_token
+      parameters:
+      - description: 可选 user_id
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 缺少 refresh token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: refresh token 无效或过期
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 刷新访问令牌
+      tags:
+      - 用户
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名和密码注册新账号
+      parameters:
+      - description: 注册信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 注册成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 用户名已存在或参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 用户注册
+      tags:
+      - 用户
+  /search/users:
+    get:
+      parameters:
+      - description: 搜索关键词
+        in: query
+        name: query
+        required: true
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 搜索结果
+          schema:
+            $ref: '#/definitions/model.SearchResponse'
+        "400":
+          description: 缺少 query
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 搜索用户
+      tags:
+      - 用户
+  /unblack:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 'target_id: 取消拉黑用户ID'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取消成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 取消拉黑
+      tags:
+      - 社交关系
+  /unfollow:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 'target_id: 取消关注用户ID'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取消成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未认证
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 取消关注
+      tags:
+      - 社交关系
+schemes:
+- http
+- https
+securityDefinitions:
+  CookieAuth:
+    in: cookie
+    name: access_token
+    type: apiKey
+swagger: "2.0"

@@ -1,0 +1,84 @@
+# ═══════════════════════════════════════════════════════════════
+# FeedVideo · .gitignore
+# 原则：只忽略「生成物 / 运行时数据 / AI 过程记录 / 个人环境」；
+#      容器与本地启动必需的文件一律纳入版本控制（见第 6 节）。
+# ═══════════════════════════════════════════════════════════════
+
+# ─────────── 1. 构建产物与缓存 ───────────
+.gocache/
+.gomodcache/
+.gopath/
+gateway-linux-amd64
+media-worker-linux-amd64
+notification-worker-linux-amd64
+server.exe
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/playwright-report/
+frontend/test-results/
+frontend/coverage/
+*.tsbuildinfo
+
+# ─────────── 2. 测试 / 压测 / 验收记录（脚本与 CI 的输出）───────────
+# reports/ 由 scripts/seed-demo-videos.ps1、tests/e2e.ps1、
+# tests/regression.ps1 与覆盖率脚本写入，属于验证产物而非项目资产
+reports/
+tests/race-video-id.txt
+frontend/e2e/screenshots/
+*.cover.out
+*.prof
+*.log
+
+# ─────────── 3. 容器运行时数据卷（保留 .keep 目录占位）───────────
+deployments/data/*/*
+!deployments/data/*/.keep
+
+# ─────────── 4. AI 协作与生成记录 ───────────
+# AI 工作流（Claude / Comet / OpenSpec 变更 / codegraph 索引）的过程记录；
+# 缺失不影响项目构建与运行。openspec/specs 主规格保留在库内。
+.claude/
+.comet/
+.codegraph/*
+!.codegraph/.gitignore
+claude.txt
+docs/拷打/
+docs/superpowers/
+openspec/changes/
+
+# ─────────── 5. 密钥与环境文件：默认忽略，防误提交生产凭据 ───────────
+*.pem
+*.key
+.env
+.env.*
+deployments/keys/
+deployments/certs/
+
+# ─────────── 6. 非敏感环境模板可提交；本地配置由初始化脚本生成 ───────────
+# 已被跟踪的环境文件/证书须单独从索引移除，忽略规则不会删除索引。
+!.env.example
+!.env.template
+
+# ─────────── 7. IDE / OS ───────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ─────────── 8. 仓库根迁移 feedvideo/ 后的补充（2026-11-18）───────────
+# 桌面端（Qt/QML）只忽略构建产物，源码、qml、assets、deploy 仍纳入版本控制
+desktop/build/
+desktop/dist/
+desktop/artifacts/media/
+desktop/artifacts/fonts/
+
+# graphify 建图产物：graph.json / graph.html 入库，缓存与报告不入库
+graphify-out/cache/
+graphify-out/*.md
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 数据库/容器数据快照（体积大且属运行时数据，绝不入库）
+deployments/data/*.bak-*/

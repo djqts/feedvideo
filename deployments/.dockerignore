@@ -1,0 +1,4 @@
+# 运行时数据卷（构建上下文 = deployments/）
+data/
+# 忽略 dockerignore 自身副本
+*.dockerignore

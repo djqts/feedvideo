@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660" role="img" aria-labelledby="t d">
+  <title id="t">FeedVideo 系统结构：2 个客户端经 nginx 进入 gateway，16 个业务模块共享 6 个基础服务</title>
+  <desc id="d">系统结构图：Web 与 Qt 桌面端经 nginx 进入 gateway；gateway 装配 user、video、feed、recommend、search 等 16 个模块；media-worker 与 notification-worker 订阅消息；MySQL、MongoDB、Redis、Elasticsearch、RabbitMQ、MinIO 为共享基础设施。</desc>
+  <rect width="1200" height="660" fill="#F3F1EC"/>
+  <text x="40" y="46" font-size="17" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="2">// SYSTEM MAP</text>
+  <text x="1160" y="46" font-size="17" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" text-anchor="end">docker compose 一次拉起 6 个依赖</text>
+  <text x="40" y="84" font-size="16" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="2">CLIENTS</text>
+  <text x="348" y="84" font-size="16" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="2">EDGE + GATEWAY</text>
+  <text x="828" y="84" font-size="16" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="2">INFRA</text>
+  <rect x="40" y="100" width="260" height="92" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <rect x="40" y="100" width="3" height="92" fill="#161616"/>
+  <text x="60" y="138" font-size="24" fill="#161616" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" font-weight="700">Web</text>
+  <text x="60" y="166" font-size="18" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">React 18 · TS · Vite</text>
+  <rect x="40" y="208" width="260" height="92" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <rect x="40" y="208" width="3" height="92" fill="#161616"/>
+  <text x="60" y="246" font-size="24" fill="#161616" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" font-weight="700">Desktop</text>
+  <text x="60" y="274" font-size="18" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">Qt 6.6+ · QML</text>
+  <rect x="348" y="100" width="432" height="56" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="368" y="134" font-size="20" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="600">nginx :80 / :443</text>
+  <text x="760" y="134" font-size="17" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" text-anchor="end">只暴露边缘端口</text>
+  <rect x="348" y="176" width="432" height="336" fill="#FBFAF7" stroke="#161616" stroke-width="1.5"/>
+  <rect x="348" y="176" width="432" height="4" fill="#161616"/>
+  <rect x="368" y="198" width="12" height="12" fill="#FFFA00"/>
+  <text x="392" y="212" font-size="23" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="700">gateway :8080</text>
+  <text x="760" y="212" font-size="17" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" text-anchor="end">路由 · 鉴权 · 装配</text>
+  <path d="M364 240 L560 240 L560 267 L553 274 L364 274 Z" fill="#E4E4E0"/>
+  <path d="M364 240 H560 V267 L553 274 H364 Z" fill="#E4E4E0"/>
+  <text x="378" y="263" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">user</text>
+  <path d="M572 240 L768 240 L768 267 L761 274 L572 274 Z" fill="#E4E4E0"/>
+  <path d="M572 240 H768 V267 L761 274 H572 Z" fill="#E4E4E0"/>
+  <text x="586" y="263" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">video</text>
+  <path d="M364 286 L560 286 L560 313 L553 320 L364 320 Z" fill="#E4E4E0"/>
+  <path d="M364 286 H560 V313 L553 320 H364 Z" fill="#E4E4E0"/>
+  <text x="378" y="309" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">feed</text>
+  <path d="M572 286 L768 286 L768 313 L761 320 L572 320 Z" fill="#E4E4E0"/>
+  <path d="M572 286 H768 V313 L761 320 H572 Z" fill="#E4E4E0"/>
+  <text x="586" y="309" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">recommend</text>
+  <path d="M364 332 L560 332 L560 359 L553 366 L364 366 Z" fill="#E4E4E0"/>
+  <path d="M364 332 H560 V359 L553 366 H364 Z" fill="#E4E4E0"/>
+  <text x="378" y="355" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">search</text>
+  <path d="M572 332 L768 332 L768 359 L761 366 L572 366 Z" fill="#E4E4E0"/>
+  <path d="M572 332 H768 V359 L761 366 H572 Z" fill="#E4E4E0"/>
+  <text x="586" y="355" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">tag-topic</text>
+  <path d="M364 378 L560 378 L560 405 L553 412 L364 412 Z" fill="#E4E4E0"/>
+  <path d="M364 378 H560 V405 L553 412 H364 Z" fill="#E4E4E0"/>
+  <text x="378" y="401" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">creator-center</text>
+  <path d="M572 378 L768 378 L768 405 L761 412 L572 412 Z" fill="#E4E4E0"/>
+  <path d="M572 378 H768 V405 L761 412 H572 Z" fill="#E4E4E0"/>
+  <text x="586" y="401" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">moderation</text>
+  <path d="M364 424 L560 424 L560 451 L553 458 L364 458 Z" fill="#E4E4E0"/>
+  <path d="M364 424 H560 V451 L553 458 H364 Z" fill="#E4E4E0"/>
+  <text x="378" y="447" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">notification</text>
+  <path d="M572 424 L768 424 L768 451 L761 458 L572 458 Z" fill="#E4E4E0"/>
+  <path d="M572 424 H768 V451 L761 458 H572 Z" fill="#E4E4E0"/>
+  <text x="586" y="447" font-size="18" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">admin + auth</text>
+  <rect x="348" y="540" width="432" height="100" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="368" y="562" font-size="14" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="2">// WORKERS</text>
+  <text x="368" y="590" font-size="17" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="600">media-worker</text>
+  <text x="508" y="590" font-size="18" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">ffmpeg · 480p / 720p / cover</text>
+  <text x="368" y="620" font-size="17" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="600">notification-worker</text>
+  <text x="564" y="620" font-size="18" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">消费 · DLQ · 重放</text>
+  <text x="40" y="356" font-size="15" fill="#5C5C5C" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="2">// SHARED CONTRACT</text>
+  <line x1="40" y1="370" x2="300" y2="370" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="40" y="392" font-size="17" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">/api/v1</text>
+  <text x="300" y="392" font-size="17" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" text-anchor="end">唯一的业务入口</text>
+  <line x1="40" y1="404" x2="300" y2="404" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="40" y="426" font-size="17" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">JWT + CSRF</text>
+  <text x="300" y="426" font-size="17" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" text-anchor="end">认证与跨站防护</text>
+  <line x1="40" y1="438" x2="300" y2="438" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="40" y="460" font-size="17" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">ETag / If-Match</text>
+  <text x="300" y="460" font-size="17" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" text-anchor="end">版本化状态</text>
+  <rect x="828" y="100" width="332" height="76" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="848" y="132" font-size="19" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="600">MySQL 8.0</text>
+  <text x="848" y="158" font-size="18" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">outbox · 关系版本</text>
+  <rect x="828" y="188" width="332" height="76" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="848" y="220" font-size="19" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="600">MongoDB 7.0</text>
+  <text x="848" y="246" font-size="18" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">点赞 / 收藏 / 上传</text>
+  <rect x="828" y="276" width="332" height="76" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="848" y="308" font-size="19" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="600">Redis 7.4</text>
+  <text x="848" y="334" font-size="18" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">Feed 池 · 计数 · 限流</text>
+  <rect x="828" y="364" width="332" height="76" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="848" y="396" font-size="19" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="600">Elasticsearch</text>
+  <text x="848" y="422" font-size="18" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">搜索投影 · 可见性</text>
+  <rect x="828" y="452" width="332" height="76" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="848" y="484" font-size="19" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="600">RabbitMQ 4.0</text>
+  <text x="848" y="510" font-size="18" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">业务事件 · DLQ</text>
+  <rect x="828" y="540" width="332" height="76" fill="#FBFAF7" stroke="#D9D9D6" stroke-width="1"/>
+  <text x="848" y="572" font-size="19" fill="#161616" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="600">MinIO</text>
+  <text x="848" y="598" font-size="18" fill="#5C5C5C" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif">原片 / 转码 / 封面</text>
+  <line x1="300" y1="146" x2="324" y2="146" stroke="#161616" stroke-width="1.4"/>
+  <line x1="324" y1="146" x2="324" y2="128" stroke="#161616" stroke-width="1.4"/>
+  <line x1="324" y1="128" x2="344" y2="128" stroke="#161616" stroke-width="1.4"/>
+  <path d="M344 128 L337.69687028353127 131.04475873877863 L337.69687028353127 124.95524126122139 Z" fill="#161616"/>
+  <line x1="300" y1="254" x2="324" y2="254" stroke="#161616" stroke-width="1.4"/>
+  <line x1="324" y1="254" x2="324" y2="128" stroke="#161616" stroke-width="1.4"/>
+  <line x1="324" y1="128" x2="344" y2="128" stroke="#161616" stroke-width="1.4"/>
+  <path d="M344 128 L337.69687028353127 131.04475873877863 L337.69687028353127 124.95524126122139 Z" fill="#161616"/>
+  <line x1="564" y1="156" x2="564" y2="172" stroke="#161616" stroke-width="1.4"/>
+  <path d="M564 172 L560.9552412612214 165.69687028353127 L567.0447587387786 165.69687028353127 Z" fill="#161616"/>
+  <line x1="780" y1="344" x2="806" y2="344" stroke="#161616" stroke-width="1.4"/>
+  <path d="M806 344 L799.6968702835312 347.0447587387786 L799.6968702835312 340.9552412612214 Z" fill="#161616"/>
+  <line x1="806" y1="138" x2="806" y2="578" stroke="#161616" stroke-width="1.4"/>
+  <line x1="806" y1="138" x2="824" y2="138" stroke="#161616" stroke-width="1.4"/>
+  <path d="M824 138 L818.5973173858839 140.60979320466737 L818.5973173858839 135.39020679533263 Z" fill="#161616"/>
+  <line x1="806" y1="226" x2="824" y2="226" stroke="#161616" stroke-width="1.4"/>
+  <path d="M824 226 L818.5973173858839 228.60979320466737 L818.5973173858839 223.39020679533263 Z" fill="#161616"/>
+  <line x1="806" y1="314" x2="824" y2="314" stroke="#161616" stroke-width="1.4"/>
+  <path d="M824 314 L818.5973173858839 316.60979320466737 L818.5973173858839 311.39020679533263 Z" fill="#161616"/>
+  <line x1="806" y1="402" x2="824" y2="402" stroke="#161616" stroke-width="1.4"/>
+  <path d="M824 402 L818.5973173858839 404.60979320466737 L818.5973173858839 399.39020679533263 Z" fill="#161616"/>
+  <line x1="806" y1="490" x2="824" y2="490" stroke="#161616" stroke-width="1.4"/>
+  <path d="M824 490 L818.5973173858839 492.60979320466737 L818.5973173858839 487.39020679533263 Z" fill="#161616"/>
+  <line x1="806" y1="578" x2="824" y2="578" stroke="#161616" stroke-width="1.4"/>
+  <path d="M824 578 L818.5973173858839 580.6097932046674 L818.5973173858839 575.3902067953326 Z" fill="#161616"/>
+  <line x1="564" y1="512" x2="564" y2="536" stroke="#161616" stroke-width="1.4"/>
+  <path d="M564 536 L560.9552412612214 529.6968702835312 L567.0447587387786 529.6968702835312 Z" fill="#161616"/>
+</svg>

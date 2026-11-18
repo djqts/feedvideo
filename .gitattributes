@@ -1,0 +1,16 @@
+# 证书与密钥：禁止行尾转换，保证私钥/证书按原始字节入库与检出
+*.pem -text
+*.key -text
+*.crt -text
+*.cer -text
+
+# 二进制样本与图片：按二进制处理，避免无意义的行尾/合并处理
+*.mp4 -text
+*.jpg -text
+*.png -text
+
+# Shell entrypoints must remain executable on Linux after a Windows checkout.
+*.sh text eol=lf
+
+# Migration SHA-256 is over artifact bytes; Windows checkouts must keep SQL identical.
+*.sql text eol=lf
